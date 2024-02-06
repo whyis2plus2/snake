@@ -1,0 +1,5 @@
+-Wall-pedantic
+-std=gnu2x
+-fms-extensions
+-Werror
+-Iinc

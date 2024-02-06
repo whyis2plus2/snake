@@ -1,13 +1,9 @@
-MKDIR := py mkdir.py
+MKDIR := python mkdir.py
+RMDIR := python rmdir.py
 
 CC := gcc
-CFLAGS := -Wall -Wdeclaration-after-statement -pedantic -std=c99 -Werror -g -O0
-
-INCLUDE := -ID:/Coding/.devel/MSYS2/ucrt64/include
-LINK_PATH := -LD:/Coding/.devel/MSYS2/ucrt64/lib
-
-COMP_FLAGS := $(CFLAGS) $(INCLUDE) -c
-LINK_FLAGS := $(CFLAGS) $(LINK_PATH)
+CFLAGS := -Wall -pedantic -std=gnu2x -fms-extensions -Werror -g -O0 -Iinc -c
+LFLAGS := -Llib -lmingw32 -lSDL2main -lSDL2
 
 SRC_DIR := src
 OBJ_DIR := build
@@ -19,21 +15,22 @@ OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
 EXE := test
 TARGET := $(OUT_DIR)/$(EXE).exe
 
-all: $(TARGET)
+build: $(TARGET)
 
 $(TARGET): $(OBJ)
 	@$(MKDIR) $(OUT_DIR)
-	$(CC) $(LINK_FLAGS) $^ -o$@
+	$(CC) $^ $(LFLAGS) -o$@ 
+	@copy SDL2.dll $(OUT_DIR) > NUL
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(MKDIR) $(OBJ_DIR)
-	$(CC) $(COMP_FLAGS) $< -o$@ 
+	$(CC) $(CFLAGS) $< -o$@ 
 
 clean:
-	rmdir /s /q $(OBJ_DIR) $(OUT_DIR)
+	@$(RMDIR) /s /q $(OBJ_DIR) $(OUT_DIR)
 
 run: $(TARGET)
-	./$(TARGET)
+	.\$(TARGET)
 
 .PHONY:
 	make clean run
