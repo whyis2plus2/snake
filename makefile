@@ -3,7 +3,7 @@ RMDIR := python rmdir.py
 
 CC := gcc
 CFLAGS := -Wall -pedantic -std=c11 -Werror -g -O1 -Iinc
-LFLAGS := -Llib -lmingw32 -lSDL2main -lSDL2
+LFLAGS := -Llib -lmingw32 -lSDL2main -lSDL2 -mwindows
 
 SRC_DIR := src
 OBJ_DIR := build

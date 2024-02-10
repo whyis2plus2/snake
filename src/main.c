@@ -26,6 +26,13 @@
 
 typedef SDL_Point IntVector2;
 
+typedef enum {
+	BODY_DIR_UP = 0,
+	BODY_DIR_DOWN,
+	BODY_DIR_LEFT,
+	BODY_DIR_RIGHT
+} BodyDir;
+
 void init(void);
 void event(void);
 void keyboard(void);
@@ -53,6 +60,7 @@ struct {
 		IntVector2 vel;
 		size_t length;
 		SDL_Rect *body;
+		BodyDir *body_dirs;
 	} player;
 } state = {0};
 
@@ -75,6 +83,7 @@ int main(int argc, char *argv[]) {
 		if (SDL_fabsf(state.input_cooldown) < FLT_EPSILON) {
 			if (state.player.length > 1) for (size_t i = state.player.length - 1; i >= 1; --i) {
 				state.player.body[i] = state.player.body[i - 1];
+				state.player.body_dirs[i] = state.player.body_dirs[i - 1];
 			}
 
 			state.player.body[0].x += state.player.vel.x;
@@ -115,10 +124,15 @@ void init(void) {
 
 	state.player.length = 1;
 	state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
-	state.player.body[0].x = window_dim.x/2; state.player.body[0].x -= GRID_SIZE/2;
-	state.player.body[0].y = window_dim.y/2; state.player.body[0].y -= GRID_SIZE/2;
 	
 	assertf(state.player.body != NULL, "Failed to create player\n");
+
+	state.player.body[0].x = window_dim.x/2; state.player.body[0].x -= GRID_SIZE/2;
+	state.player.body[0].y = window_dim.y/2; state.player.body[0].y -= GRID_SIZE/2;
+
+	state.player.body_dirs = realloc(state.player.body_dirs, sizeof(*state.player.body_dirs) * state.player.length);
+	assertf(state.player.body_dirs != NULL, "Failed to create array of player segment dirs\n");
+	state.player.body_dirs[0] = BODY_DIR_DOWN;
 
 	state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
 	state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
@@ -150,23 +164,27 @@ void keyboard(void) {
 		
 		switch (key) {
 			case (SDLK_a):
-				if (state.player.vel.x != GRID_SIZE) state.player.vel.x = -GRID_SIZE;
+				if (state.player.vel.x != GRID_SIZE) {
+					state.player.vel.x = -GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_LEFT;}
 				state.player.vel.y = 0;
 				break;
 
 			case (SDLK_d):
-				if (state.player.vel.x != -GRID_SIZE) state.player.vel.x = GRID_SIZE;
+				if (state.player.vel.x != -GRID_SIZE) {
+					state.player.vel.x = GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_RIGHT;}
 				state.player.vel.y = 0;
 				break;
 
 			case (SDLK_w):
 				state.player.vel.x = 0;
-				if (state.player.vel.y != GRID_SIZE) state.player.vel.y = -GRID_SIZE;
+				if (state.player.vel.y != GRID_SIZE) {
+					state.player.vel.y = -GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_UP;}
 				break;
 
 			case (SDLK_s):
 				state.player.vel.x = 0;
-				if (state.player.vel.y != -GRID_SIZE) state.player.vel.y = GRID_SIZE;
+				if (state.player.vel.y != -GRID_SIZE) {
+					state.player.vel.y = GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_DOWN;}
 				break;
 
 			default:
@@ -187,6 +205,8 @@ void update(void) {
 		state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
 		state.player.body[state.player.length - 1].x = -100 * GRID_SIZE;
 		state.player.body[state.player.length - 1].y = -100 * GRID_SIZE;
+
+		state.player.body_dirs = realloc(state.player.body_dirs, sizeof(*state.player.body_dirs) * state.player.length);
 	}
 
 	bool is_player_oob = state.player.body[0].x > window_dim.x || \
@@ -211,8 +231,10 @@ void update(void) {
 		}
 	}
 
-	state.player.body[state.player.length - 1].w = GRID_SIZE/2;
-	state.player.body[state.player.length - 1].h = GRID_SIZE/2;
+	for (size_t i = 0; i < state.player.length; ++i) {
+		if (state.player.body[i].w != GRID_SIZE/2) state.player.body[i].w = GRID_SIZE/2;
+		if (state.player.body[i].h != GRID_SIZE/2) state.player.body[i].h = GRID_SIZE/2;
+	}
 }
 
 void render(void) {
@@ -222,9 +244,31 @@ void render(void) {
 	SDL_RenderClear(state.renderer);
 
 	for (size_t i = 0; i < state.player.length; ++i) {
-		SDL_SetRenderDrawColor(state.renderer, 0x00, 0x7F, 0x00, 0xFF);
-		SDL_RenderDrawRect(state.renderer, &state.player.body[i]);
-		SDL_RenderFillRect(state.renderer, &state.player.body[i]);
+		SDL_Rect r = state.player.body[i];
+		SDL_Color c = (i % 2 == 1) ? (SDL_Color){0x00, 0xCF, 0x00} : (SDL_Color){0x00, 0x7F, 0x00};
+
+		if (i > 0) switch (state.player.body_dirs[i]) {
+			case BODY_DIR_DOWN:
+				r.h = GRID_SIZE;
+				break;
+
+			case BODY_DIR_UP:
+				r.h = GRID_SIZE;
+				r.y -= GRID_SIZE/2;
+				break;
+
+			case BODY_DIR_RIGHT:
+				r.w = GRID_SIZE;
+				break;
+
+			case BODY_DIR_LEFT:
+				r.w = GRID_SIZE;
+				r.x -= GRID_SIZE/2;
+		}
+
+		SDL_SetRenderDrawColor(state.renderer, c.r, c.g, c.b, 0xFF);
+		SDL_RenderDrawRect(state.renderer, &r);
+		SDL_RenderFillRect(state.renderer, &r);
 	}
 
 	SDL_SetRenderDrawColor(state.renderer, COLOR_RED);
