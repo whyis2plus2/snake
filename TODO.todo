@@ -1,0 +1,12 @@
+Player:
+  ✔ Create the player @done(24-02-09 17:02)
+  ✔ Draw the player @done(24-02-09 17:02)
+  ✔ Implement player movement @done(24-02-09 17:02)
+  ✔ Implement rect collision detection @done(24-02-09 22:05)
+  ✔ Implement food @done(24-02-09 22:38)
+  ✔ Implement player growth @done(24-02-10 14:33)
+
+misc:
+  ✔ Handle keyboard input @done(24-02-08 19:33)
+  ✘ Implement score counter @cancelled(24-02-07 17:30) 
+  

@@ -1,5 +1,7 @@
--Wall-pedantic
--std=gnu2x
--fms-extensions
--Werror
+-Wall
+-std=c11
+-pedantic
 -Iinc
+
+-fgnuc-version=13.2.0
+-U__clang__

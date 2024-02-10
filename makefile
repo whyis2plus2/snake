@@ -2,8 +2,8 @@ MKDIR := python mkdir.py
 RMDIR := python rmdir.py
 
 CC := gcc
-CFLAGS := -Wall -pedantic -std=gnu2x -fms-extensions -Werror -g -O0 -Iinc -c
-LFLAGS := -Llib -lmingw32 -lSDL2main -lSDL2
+CFLAGS := -Wall -pedantic -std=c11 -Werror -g -O1 -Iinc
+LFLAGS := -Llib -lmingw32 -lSDL2main -lSDL2 -lm
 
 SRC_DIR := src
 OBJ_DIR := build
@@ -12,8 +12,8 @@ OUT_DIR := out
 SRC := $(wildcard $(SRC_DIR)/*.c)
 OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
 
-EXE := test
-TARGET := $(OUT_DIR)/$(EXE).exe
+EXE := snake.exe
+TARGET := $(OUT_DIR)/$(EXE)
 
 build: $(TARGET)
 
@@ -24,10 +24,10 @@ $(TARGET): $(OBJ)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(MKDIR) $(OBJ_DIR)
-	$(CC) $(CFLAGS) $< -o$@ 
+	$(CC) $(CFLAGS) -c $< -o$@ 
 
 clean:
-	@$(RMDIR) /s /q $(OBJ_DIR) $(OUT_DIR)
+	@$(RMDIR) $(OBJ_DIR) $(OUT_DIR)
 
 run: $(TARGET)
 	.\$(TARGET)
