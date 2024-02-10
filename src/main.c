@@ -202,7 +202,7 @@ void update(void) {
 	}
 
 	for (size_t i = 1; i < state.player.length; ++i) {
-		if (collide_rect(&state.player.body[0], &state.player.body[i]) && !collide_rect(&state.player.body[0], &food_rect)) {
+		if (state.player.body[0].x == state.player.body[i].x && state.player.body[0].y == state.player.body[i].y) {
 			state.player.length = 1;
 			state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
 			state.player.body[0].x = window_dim.x/2; state.player.body[0].x -= GRID_SIZE/2;
