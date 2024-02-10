@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 		event();
 		keyboard();
 
-		if (state.input_cooldown < FLT_MIN) {
+		if (SDL_fabsf(state.input_cooldown) < FLT_EPSILON) {
 			if (state.player.length > 1) for (size_t i = state.player.length - 1; i >= 1; --i) {
 				state.player.body[i] = state.player.body[i - 1];
 			}
