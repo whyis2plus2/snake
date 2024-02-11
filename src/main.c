@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
 		} else {
 			state.input_cooldown -= 0.1f;
 		}
-
+		
 		update();
 		render();
 		MSLEEP(10);
