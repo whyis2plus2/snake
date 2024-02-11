@@ -1,7 +1,6 @@
 #include <float.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -18,6 +17,7 @@
 #include <windows.h>
 #define MSLEEP(_m) Sleep(_m)
 #elif defined(__linux__)
+#define __USE_MISC 1
 #include <unistd.h>
 #define MSLEEP(_m) usleep((_m) * 1000)
 #else // fallback, use busy wait
@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
 	state.player.vel.y = -GRID_SIZE;
 
 	while (!state.should_close) {
+		
 		event();
 		keyboard();
 
