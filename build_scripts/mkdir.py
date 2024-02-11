@@ -14,4 +14,4 @@ for dir in dirs:
     i = os.path.normpath(dir)
 
     if (not os.path.exists(dir)):
-        os.system(f"mkdir {dir}")
+        os.mkdir(dir)
