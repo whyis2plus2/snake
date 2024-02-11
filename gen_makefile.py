@@ -31,8 +31,7 @@ if os.path.exists("makefile"):
 
 mk = open("makefile", 'w')
 
-mk.write(f"""
-build: {TARGET}
+mk.write(f"""build: {TARGET}
 
 {TARGET}: {OBJ}
 \t@{MKDIR} {OUT_DIR}
@@ -50,7 +49,6 @@ run: {TARGET}
 \t{RUN}{TARGET}
 
 .PHONY:
-\tmake clean run build
-""")
+\tmake clean run build""")
 
 mk.close()
