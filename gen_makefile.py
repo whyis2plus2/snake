@@ -1,7 +1,7 @@
 import platform
 import os
 
-# general consts
+# platform independent constants
 CC = "gcc"
 CFLAGS = "-Wall -pedantic -std=c11 -Werror -g -O1 -Iinc"
 SRC_DIR = "src"
@@ -11,14 +11,7 @@ EXE = "snake"
 SRC = f"$(wildcard {SRC_DIR}/*.c)"
 OBJ = f"$(patsubst {SRC_DIR}/%.c,{OBJ_DIR}/%.o,{SRC})"
 
-# platform specific consts, to be modified
-MKDIR = ""
-RMDIR = ""
-RUN = ""
-LFLAGS = ""
-EXE_EXT = ""
-TARGET = ""
-
+# platform specific constants
 if platform.system() == "Windows":
     MKDIR = "python build_scripts/mkdir.py"
     RMDIR = "python build_scripts/rmdir.py"
