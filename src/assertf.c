@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #define STR const char*
-#define UINT const unsigned int
+#define UINT unsigned int
 
 // Assert expr with a custom error message on failure, should be called through the `assertf` macro
 void _impl_assertf(STR file, UINT line, STR func, STR estr, int expr, STR fmt, ...) {

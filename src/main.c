@@ -39,10 +39,13 @@ void keyboard(void);
 void update(void);
 void render(void);
 
-// millisecond busy wait function
+// Millisecond busy wait function
 void mbwait(uint32_t milliseconds);
 
+// Check collision between two rectangles
 bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2);
+
+// Generate a random number from min to max
 int randrange(int min, int max);
 
 struct {
@@ -74,21 +77,24 @@ int main(int argc, char *argv[]) {
 
 	init();
 
-	state.player.vel.y = -GRID_SIZE;
-
 	while (!state.should_close) {
 		
 		event();
 		keyboard();
 
+		// If state.input_cooldown ~= 0
 		if (SDL_fabsf(state.input_cooldown) < FLT_EPSILON) {
+			// update the rotations and positions of the snake's body
 			if (state.player.length > 1) for (size_t i = state.player.length - 1; i >= 1; --i) {
 				state.player.body[i] = state.player.body[i - 1];
 				state.player.body_dirs[i] = state.player.body_dirs[i - 1];
 			}
 
+			// move the snake's head
 			state.player.body[0].x += state.player.vel.x;
 			state.player.body[0].y += state.player.vel.y;
+
+			// reset cooldown
 			state.input_cooldown = 1.0f;
 		} else {
 			state.input_cooldown -= 0.1f;
@@ -109,20 +115,24 @@ int main(int argc, char *argv[]) {
 }
 
 void init(void) {
+	// init rand
 	srand(SDL_static_cast(unsigned int, clock()));
 
+	// init sdl2
 	assertf(SDL_Init(SDL_INIT_VIDEO) == 0, "Failed to init SDL2: %s\n", SDL_GetError());
 
+	// create the window
 	state.window = SDL_CreateWindow("snake", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, 0);
-
 	assertf(state.window, "Failed to create window: %s\n", SDL_GetError());
 
+	// create the renderer
 	state.renderer = SDL_CreateRenderer(state.window, -1, 0);
-
 	assertf(state.renderer, "Failed to create renderer: %s\n", SDL_GetError());
 
+	// get the dimensions of the window
 	IntVector2 window_dim = {0}; SDL_GetWindowSizeInPixels(state.window, &window_dim.x, &window_dim.y);
 
+	// create the player
 	state.player.length = 1;
 	state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
 	
@@ -133,8 +143,9 @@ void init(void) {
 
 	state.player.body_dirs = realloc(state.player.body_dirs, sizeof(*state.player.body_dirs) * state.player.length);
 	assertf(state.player.body_dirs != NULL, "Failed to create array of player segment dirs\n");
-	state.player.body_dirs[0] = BODY_DIR_DOWN;
+	state.player.vel.y = -GRID_SIZE;
 
+	// init food position
 	state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
 	state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
 }
@@ -199,9 +210,11 @@ void update(void) {
 	IntVector2 window_dim = {0}; SDL_GetWindowSizeInPixels(state.window, &window_dim.x, &window_dim.y);
 
 	if (collide_rect(&state.player.body[0], &food_rect)) {
+		// randomize food position
 		state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
 		state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
 
+		// update player
 		++state.player.length;
 		state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
 		state.player.body[state.player.length - 1].x = -100 * GRID_SIZE;
@@ -233,6 +246,7 @@ void update(void) {
 	}
 
 	for (size_t i = 1; i < state.player.length; ++i) {
+		// reset the game if the snake collides with itself
 		if (state.player.body[0].x == state.player.body[i].x && state.player.body[0].y == state.player.body[i].y) {
 			state.player.length = 1;
 			state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
@@ -240,8 +254,16 @@ void update(void) {
 			state.player.body[0].y = window_dim.y/2; state.player.body[0].y -= GRID_SIZE/2;
 			break;
 		}
+
+		// re-randomize food position if it spawns on the player
+		if (collide_rect(&food_rect, &state.player.body[i])) {
+			state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
+			state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
+			break;
+		}
 	}
 
+	// force the size of the body to be correct
 	for (size_t i = 0; i < state.player.length; ++i) {
 		if (state.player.body[i].w != GRID_SIZE/2) state.player.body[i].w = GRID_SIZE/2;
 		if (state.player.body[i].h != GRID_SIZE/2) state.player.body[i].h = GRID_SIZE/2;
