@@ -2,14 +2,9 @@
 
 if (__name__ != "__main__"): raise Exception("Not a library")
 
-from sys import argv
-import sys
-import os
-import shutil
+import sys, os, shutil
 
-if (len(argv) < 2): print("Please input at least one argument"); sys.exit(-1)
-
-dirs = argv.copy(); dirs.pop(0)
+dirs = sys.argv.copy(); dirs.pop(0)
 
 for dir in dirs:
     i = os.path.normpath(dir)

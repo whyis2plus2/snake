@@ -1,5 +1,4 @@
-import platform
-import os
+import platform, os
 
 # platform independent constants
 CC = "gcc"
