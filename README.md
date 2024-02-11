@@ -1,5 +1,11 @@
 Another snake clone written in c
 
-to build on windows use mingw with gcc and have python 3.11 (or higher) installed
+## requirements
 
-on linux make your own makefile
+python 3.10 or higher
+the ability to run a makefile
+gcc
+
+## building
+
+run the makefile created by gen_makefile.py using `make build`

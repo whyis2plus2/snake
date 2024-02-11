@@ -40,7 +40,7 @@ clean:
 \t@$(RMDIR) $(OBJ_DIR) $(OUT_DIR)
 
 run: $(TARGET)
-\t.\$(TARGET)
+\t.\\$(TARGET)
 
 .PHONY:
 \tmake clean run
