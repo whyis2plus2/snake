@@ -214,6 +214,16 @@ void update(void) {
 						 state.player.body[0].x < 0 || \
 						 state.player.body[0].y < 0;
 
+	bool is_food_oob = state.food.pos.x > window_dim.x || \
+					   state.food.pos.y > window_dim.y || \
+					   state.food.pos.x < 0 || \
+					   state.food.pos.y < 0;
+
+	if (is_food_oob) {
+		state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
+		state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
+	}
+
 	if (is_player_oob) {
 		state.player.length = 1;
 		state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
