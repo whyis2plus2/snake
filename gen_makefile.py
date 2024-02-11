@@ -8,77 +8,77 @@ mk = open("makefile", 'w')
 
 if platform.system() == "Windows":
     mk.write("""
-        \rMKDIR := python mkdir.py
-        \rRMDIR := python rmdir.py
+MKDIR := python mkdir.py
+RMDIR := python rmdir.py
 
-        \rCC := gcc
-        \rCFLAGS := -Wall -pedantic -std=c11 -Werror -g -O1 -Iinc
-        \rLFLAGS := -Llib/SDL2 -lmingw32 -lSDL2main -lSDL2 -mwindows
+CC := gcc
+CFLAGS := -Wall -pedantic -std=c11 -Werror -g -O1 -Iinc
+LFLAGS := -Llib/SDL2 -lmingw32 -lSDL2main -lSDL2 -mwindows
 
-        \rSRC_DIR := src
-        \rOBJ_DIR := build
-        \rOUT_DIR := out
+SRC_DIR := src
+OBJ_DIR := build
+OUT_DIR := out
 
-        \rSRC := $(wildcard $(SRC_DIR)/*.c)
-        \rOBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
+SRC := $(wildcard $(SRC_DIR)/*.c)
+OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
 
-        \rEXE := snake.exe
-        \rTARGET := $(OUT_DIR)/$(EXE)
+EXE := snake.exe
+TARGET := $(OUT_DIR)/$(EXE)
 
-        \rbuild: $(TARGET)
+build: $(TARGET)
 
-        \r$(TARGET): $(OBJ)
-        \r\t@$(MKDIR) $(OUT_DIR)
-        \r\t$(CC) $^ $(LFLAGS) -o$@ 
-        \r\t@copy SDL2.dll $(OUT_DIR) > NUL
+$(TARGET): $(OBJ)
+\t@$(MKDIR) $(OUT_DIR)
+\t$(CC) $^ $(LFLAGS) -o$@ 
+\t@copy SDL2.dll $(OUT_DIR) > NUL
 
-        \r$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-        \r\t@$(MKDIR) $(OBJ_DIR)
-        \r\t$(CC) $(CFLAGS) -c $< -o$@ 
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+\t@$(MKDIR) $(OBJ_DIR)
+\t$(CC) $(CFLAGS) -c $< -o$@ 
 
-        \rclean:
-        \r\t@$(RMDIR) $(OBJ_DIR) $(OUT_DIR)
+clean:
+\t@$(RMDIR) $(OBJ_DIR) $(OUT_DIR)
 
-        \rrun: $(TARGET)
-        \r\t.\$(TARGET)
+run: $(TARGET)
+\t.\$(TARGET)
 
-        \r.PHONY:
-        \r\tmake clean run
+.PHONY:
+\tmake clean run
 """)
 else:
     mk.write("""
-        \rCC := gcc
-        \rCFLAGS := -Wall -pedantic -std=c11 -Werror -g -O1 -Iinc
-        \rLFLAGS := -lSDL2main -lSDL2
+CC := gcc
+CFLAGS := -Wall -pedantic -std=c11 -Werror -g -O1 -Iinc
+LFLAGS := -lSDL2main -lSDL2
 
-        \rSRC_DIR := src
-        \rOBJ_DIR := build
-        \rOUT_DIR := out
+SRC_DIR := src
+OBJ_DIR := build
+OUT_DIR := out
 
-        \rSRC := $(wildcard $(SRC_DIR)/*.c)
-        \rOBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
+SRC := $(wildcard $(SRC_DIR)/*.c)
+OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
 
-        \rEXE := snake.exe
-        \rTARGET := $(OUT_DIR)/$(EXE)
+EXE := snake
+TARGET := $(OUT_DIR)/$(EXE)
 
-        \rbuild: $(TARGET)
+build: $(TARGET)
 
-        \r$(TARGET): $(OBJ)
-        \r\t@mkdir -p $(OUT_DIR)
-        \r\t$(CC) $^ $(LFLAGS) -o$@ 
+$(TARGET): $(OBJ)
+\t@mkdir -p $(OUT_DIR)
+\t$(CC) $^ $(LFLAGS) -o$@ 
 
-        \r$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-        \r\t@mkdir -p $(OBJ_DIR)
-        \r\t$(CC) $(CFLAGS) -c $< -o$@ 
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+\t@mkdir -p $(OBJ_DIR)
+\t$(CC) $(CFLAGS) -c $< -o$@ 
 
-        \rclean:
-        \r\trm -rf $(OBJ_DIR) $(OUT_DIR)
+clean:
+\trm -rf $(OBJ_DIR) $(OUT_DIR)
 
-        \rrun: $(TARGET)
-        \r\t./$(TARGET)
+run: $(TARGET)
+\t./$(TARGET)
 
-        \r.PHONY:
-        \r\tmake clean run
+.PHONY:
+\tmake clean run
 """)
 
 
