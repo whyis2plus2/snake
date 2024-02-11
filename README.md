@@ -8,6 +8,8 @@ the ability to run a makefile
 
 gcc
 
+SDL2 (on non-windows)
+
 ## building
 
 run the makefile created by gen_makefile.py using `make build`
