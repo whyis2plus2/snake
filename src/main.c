@@ -80,7 +80,6 @@ int main(int argc, char *argv[]) {
 	while (!state.should_close) {
 		
 		event();
-		update();
 		keyboard();
 
 		// If state.input_cooldown ~= 0
@@ -101,6 +100,7 @@ int main(int argc, char *argv[]) {
 			state.input_cooldown -= 0.1f;
 		}
 		
+		update();
 		render();
 		MSLEEP(10);
 	}
