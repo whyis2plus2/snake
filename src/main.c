@@ -105,11 +105,12 @@ int main(int argc, char *argv[]) {
 		MSLEEP(10);
 	}
 
-	SDL_DestroyWindow(state.window);
 	SDL_DestroyRenderer(state.renderer);
+	SDL_DestroyWindow(state.window);
 	SDL_Quit();
 
-	free(state.player.body);
+	free(state.player.body); state.player.body = NULL;
+	free(state.player.body_dirs); state.player.body_dirs = NULL;
 
 	return 0;
 }
