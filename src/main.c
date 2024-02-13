@@ -33,7 +33,7 @@ typedef enum {
 } BodyDir;
 
 void init(void);
-int event(void);
+void event(void);
 void keyboard(void);
 void update(void);
 void render(void);
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 	init();
 
 	while (true) {
-		if (event() == 1) {break;}
+		event();
 		keyboard();
 
 		// update the rotations and positions of the snake's body
@@ -141,19 +141,16 @@ void init(void) {
 	state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
 }
 
-int event(void) {
+void event(void) {
 	for (SDL_Event ev; SDL_PollEvent(&ev);) {
 		switch (ev.type) {
 			case SDL_QUIT:
-				return 1;
 				break;
 
 			default:
 				break;
 		}
 	}
-
-	return 0;
 }
 
 void keyboard(void) {
