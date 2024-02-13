@@ -1,4 +1,3 @@
-#include <float.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,7 +33,7 @@ typedef enum {
 } BodyDir;
 
 void init(void);
-void event(void);
+int event(void);
 void keyboard(void);
 void update(void);
 void render(void);
@@ -49,9 +48,6 @@ bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2);
 int randrange(int min, int max);
 
 struct {
-	bool should_close;
-	float input_cooldown;
-
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	
@@ -65,6 +61,9 @@ struct {
 		SDL_Rect *body;
 		BodyDir *body_dirs;
 	} player;
+
+	uint8_t *keys;
+	size_t keys_len;
 } state = {0};
 
 
@@ -77,32 +76,23 @@ int main(int argc, char *argv[]) {
 
 	init();
 
-	while (!state.should_close) {
-		
-		event();
+	while (true) {
+		if (event() == 1) {break;}
 		keyboard();
 
-		// If state.input_cooldown ~= 0
-		if (SDL_fabsf(state.input_cooldown) < FLT_EPSILON) {
-			// update the rotations and positions of the snake's body
-			if (state.player.length > 1) for (size_t i = state.player.length - 1; i >= 1; --i) {
-				state.player.body[i] = state.player.body[i - 1];
-				state.player.body_dirs[i] = state.player.body_dirs[i - 1];
-			}
-
-			// move the snake's head
-			state.player.body[0].x += state.player.vel.x;
-			state.player.body[0].y += state.player.vel.y;
-
-			// reset cooldown
-			state.input_cooldown = 1.0f;
-		} else {
-			state.input_cooldown -= 0.1f;
+		// update the rotations and positions of the snake's body
+		if (state.player.length > 1) for (size_t i = state.player.length - 1; i >= 1; --i) {
+			state.player.body[i] = state.player.body[i - 1];
+			state.player.body_dirs[i] = state.player.body_dirs[i - 1];
 		}
-		
+
+		// move the snake's head
+		state.player.body[0].x += state.player.vel.x;
+		state.player.body[0].y += state.player.vel.y;
+
 		update();
 		render();
-		MSLEEP(10);
+		MSLEEP(100);
 	}
 
 	SDL_DestroyRenderer(state.renderer);
@@ -151,17 +141,19 @@ void init(void) {
 	state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
 }
 
-void event(void) {
+int event(void) {
 	for (SDL_Event ev; SDL_PollEvent(&ev);) {
 		switch (ev.type) {
 			case SDL_QUIT:
-				state.should_close = true;
+				return 1;
 				break;
 
 			default:
 				break;
 		}
 	}
+
+	return 0;
 }
 
 void keyboard(void) {
@@ -174,7 +166,7 @@ void keyboard(void) {
 		if (!keys[i]) {continue;}
 
 		const SDL_Keycode key = SDL_GetKeyFromScancode(i);
-		
+
 		switch (key) {
 			case (SDLK_a):
 				if (state.player.vel.x != GRID_SIZE) {
