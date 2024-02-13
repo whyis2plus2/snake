@@ -61,9 +61,6 @@ struct {
 		SDL_Rect *body;
 		BodyDir *body_dirs;
 	} player;
-
-	uint8_t *keys;
-	size_t keys_len;
 } state = {0};
 
 
