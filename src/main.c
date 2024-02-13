@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
 	init();
 
 	while (true) {
+		// use return value to break so that we don't have to wait for an entire frame before the program exits
 		if (event() == 1) {break;}
 		keyboard();
 
