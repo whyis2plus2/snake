@@ -8,7 +8,8 @@ the ability to run a makefile
 
 gcc
 
-SDL2 (on non-windows)
+### Linux Specific
+SDL2 development libraries installed on system
 
 ## building
 

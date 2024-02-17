@@ -35,9 +35,9 @@ mk.write(f"""build: {TARGET}
 
 {TARGET}: {OBJ}
 \t@{MKDIR} {OUT_DIR}
-\t{CC} $^ {LFLAGS} -o$@
-""")
-mk.write(f"\t@copy SDL2.dll {OUT_DIR} > NUL" if platform.system() == "Windows" else "")
+\t{CC} $^ {LFLAGS} -o$@""")
+if platform.system() == "Windows": 
+    mk.write(f"\r\n\t@copy SDL2.dll {OUT_DIR} > NUL")
 mk.write(f"""
 {OBJ_DIR}/%.o: {SRC_DIR}/%.c
 \t@{MKDIR} {OBJ_DIR}
