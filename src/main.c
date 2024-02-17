@@ -67,7 +67,7 @@ const SDL_Color		bg_color		    = {0x00, 0x00, 0x00, 0xFF};
 // [2] == left border
 // [3] == right border
 const SDL_Color     border_colors[4]    = {
-	{COLOR_WHITE}, {COLOR_WHITE}, {COLOR_WHITE}, {COLOR_WHITE}};
+	{COLOR_GREY}, {COLOR_GREY}, {COLOR_GREY}, {COLOR_GREY}};
 #pragma endregion
 
 struct {
@@ -144,7 +144,7 @@ void init_window(void) {
 }
 
 void init_player(void) {
-	state.player.len = 0;
+	state.player.len = 1;
 	state.player.body = ALLOC(sizeof(*state.player.body) * state.player.len);
 	
 	ASSERTF(state.player.body, "Failed to init player\n");
