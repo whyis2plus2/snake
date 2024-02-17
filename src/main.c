@@ -1,193 +1,295 @@
 #include <stdbool.h>
-#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
-// use assertf assert instead of libc assert
-#define ASSERTF_USE_CUSTOM_ASSERT 1
-#include <assertf.h>
-#include <colors.h>
+#include <util/assertf.h>
+#include <util/colors.h>
+#include <util/types.h>
 
 #include <SDL2/SDL.h>
 
-#define GRID_SIZE 20
- 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#define ALLOC(_siz) calloc(1, (_siz))
+#define ARR_LEN(_arr) sizeof(_arr)/sizeof(*(_arr))
+
+#define DIR_UP    0
+#define DIR_DOWN  1
+#define DIR_LEFT  2
+#define DIR_RIGHT 3
+
+#pragma region Platform specific stuff
+#if defined(_WIN32)
 #include <windows.h>
-#define MSLEEP(_m) Sleep(_m)
-#elif defined(__linux__)
+#define MSLEEP(_ms) Sleep(_ms)
+typedef SSIZE_T ssize_t;
+#elif defined(__unix__)
 #define __USE_MISC 1
 #include <unistd.h>
-#define MSLEEP(_m) usleep((_m) * 1000)
-#else // fallback, use busy wait
-#define MSLEEP(_m) mbwait(_m)
+#define MSLEEP(_ms) usleep((_ms) * 1000)
+#else
+#error unsupported OS
 #endif
+#pragma endregion
 
-typedef SDL_Point IntVector2;
+typedef struct {SDL_Rect rect; u8 dir;} PlayerSegment_s;
 
-typedef enum {
-	BODY_DIR_UP = 0,
-	BODY_DIR_DOWN,
-	BODY_DIR_LEFT,
-	BODY_DIR_RIGHT
-} BodyDir;
+u32 init_rand(void);
+void init_window(void);
+void init_player(void);
 
-void init(void);
-int event(void);
+void window_event(void);
+void render(void);
 void keyboard(void);
 void update(void);
-void render(void);
 
-// Millisecond busy wait function
-void mbwait(uint32_t milliseconds);
-
-// Check collision between two rectangles
 bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2);
+i32 rand_range(i32 min, i32 max);
 
-// Generate a random number from min to max
-int randrange(int min, int max);
+#pragma region Config constansts
+// Flags for initialization
+const u32			init_flags		    = SDL_INIT_VIDEO | SDL_INIT_AUDIO; 
+const u32			wn_flags            = SDL_WINDOW_SHOWN;
+const u32           rn_flags		    = 0;
+
+// Appearance
+const u32  			grid_size    	    = 20;
+const char 			wn_title[]          = "snake";
+const v2i  			wn_size      	    = {800, 600};
+const v2i  			wn_pos    		    = {SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED};
+const SDL_Color 	snake_color1 	    = {0x00, 0x7F, 0x00, 0xFF};
+const SDL_Color		snake_color2	    = {0x00, 0xCF, 0x00, 0xFF};
+const SDL_Color		food_color		    = {0xBA, 0x00, 0x00, 0xFF};
+const SDL_Color		bg_color		    = {0x00, 0x00, 0x00, 0xFF};
+
+// [0] == top border
+// [1] == bottom border
+// [2] == left border
+// [3] == right border
+const SDL_Color     border_colors[4]    = {
+	{COLOR_WHITE}, {COLOR_WHITE}, {COLOR_WHITE}, {COLOR_WHITE}};
+#pragma endregion
 
 struct {
-	SDL_Window *window;
-	SDL_Renderer *renderer;
-	
-	struct {
-		IntVector2 pos;
-	} food;
+	bool should_close;
+
+	clock_t delta_time;
+	SDL_Window *wn;
+	SDL_Renderer *rn;
 
 	struct {
-		IntVector2 vel;
-		size_t length;
-		SDL_Rect *body;
-		BodyDir *body_dirs;
+		size_t len;
+		PlayerSegment_s *body;
 	} player;
 } state = {0};
 
-
 int main(int argc, char *argv[]) {
 	// make windows use utf-8 encoding
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32)
 	SetConsoleOutputCP(CP_UTF8);
 	SetConsoleCP(CP_UTF8);
 #endif
 
-	init();
+	init_rand();
+	init_window();
+	init_player();
 
-	while (true) {
-		// use return value to break so that we don't have to wait for an entire frame before the program exits
-		if (event() == 1) {break;}
-		keyboard();
+	u8 player_cooldown = 10; // 10 frame cooldown
 
-		// update the rotations and positions of the snake's body
-		if (state.player.length > 1) for (size_t i = state.player.length - 1; i >= 1; --i) {
-			state.player.body[i] = state.player.body[i - 1];
-			state.player.body_dirs[i] = state.player.body_dirs[i - 1];
+	while (!state.should_close) {
+		window_event();
+
+		if (player_cooldown == 0) {
+			keyboard();
+			update();
+			player_cooldown = 10;
+		} else {
+			--player_cooldown;
 		}
 
-		// move the snake's head
-		state.player.body[0].x += state.player.vel.x;
-		state.player.body[0].y += state.player.vel.y;
-
-		update();
 		render();
-		MSLEEP(100);
+		MSLEEP(10); // run at 100 fps
 	}
-
-	SDL_DestroyRenderer(state.renderer);
-	SDL_DestroyWindow(state.window);
-	SDL_Quit();
-
-	free(state.player.body); state.player.body = NULL;
-	free(state.player.body_dirs); state.player.body_dirs = NULL;
-
+	
 	return 0;
 }
 
-void init(void) {
-	// init rand
-	srand(SDL_static_cast(unsigned int, clock()));
+u32 init_rand(void) {
+	void *seed_gen = ALLOC(1);
 
-	// init sdl2
-	assertf(SDL_Init(SDL_INIT_VIDEO) == 0, "Failed to init SDL2: %s\n", SDL_GetError());
+	u32 seed = (u32)((uintptr_t)seed_gen ^ (uintptr_t)&seed_gen);
+	srand(seed);
 
-	// create the window
-	state.window = SDL_CreateWindow("snake", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, 0);
-	assertf(state.window, "Failed to create window: %s\n", SDL_GetError());
-
-	// create the renderer
-	state.renderer = SDL_CreateRenderer(state.window, -1, 0);
-	assertf(state.renderer, "Failed to create renderer: %s\n", SDL_GetError());
-
-	// get the dimensions of the window
-	IntVector2 window_dim = {0}; SDL_GetWindowSizeInPixels(state.window, &window_dim.x, &window_dim.y);
-
-	// create the player
-	state.player.length = 1;
-	state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
-	
-	assertf(state.player.body != NULL, "Failed to create player\n");
-
-	state.player.body[0].x = window_dim.x/2; state.player.body[0].x -= GRID_SIZE/2;
-	state.player.body[0].y = window_dim.y/2; state.player.body[0].y -= GRID_SIZE/2;
-
-	state.player.body_dirs = realloc(state.player.body_dirs, sizeof(*state.player.body_dirs) * state.player.length);
-	assertf(state.player.body_dirs != NULL, "Failed to create array of player segment dirs\n");
-	state.player.vel.y = -GRID_SIZE;
-
-	// init food position
-	state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
-	state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
+	free(seed_gen);
+	return seed;
 }
 
-int event(void) {
+void init_window(void) {
+	ASSERTF(SDL_Init(init_flags) == 0,
+		    "Failed to init SDL2: %s\n", SDL_GetError());
+
+	state.wn = SDL_CreateWindow(wn_title, 
+								wn_pos.x, 
+								wn_pos.y, 
+								wn_size.x, 
+								wn_size.y,
+								wn_flags
+							   );
+
+	ASSERTF(state.wn, "Failed to create window: %s\n", SDL_GetError());
+
+	state.rn = SDL_CreateRenderer(state.wn, -1, rn_flags);
+	ASSERTF(state.rn, "Failed to create renderer: %s\n", SDL_GetError());
+	SDL_SetRenderDrawBlendMode(state.rn, SDL_BLENDMODE_BLEND);
+}
+
+void init_player(void) {
+	state.player.len = 0;
+	state.player.body = ALLOC(sizeof(*state.player.body) * state.player.len);
+	
+	ASSERTF(state.player.body, "Failed to init player\n");
+
+	state.player.body[0].rect = (SDL_Rect){wn_size.x/2, wn_size.y/2, grid_size/2, grid_size/2};
+}
+
+void window_event(void) {
 	for (SDL_Event ev; SDL_PollEvent(&ev);) {
 		switch (ev.type) {
 			case SDL_QUIT:
-				return 1;
+				state.should_close = true;
+				break;
+
+			default:
+				break;
+		}
+
+		switch (ev.window.event) {
+			// I don't know why but kde (plasma) let me maximize the window
+			// so I'm putting this here just in case
+			case SDL_WINDOWEVENT_MAXIMIZED:
+				SDL_HideWindow(state.wn);
+				SDL_SetWindowSize(state.wn, wn_size.x, wn_size.y);
+				SDL_ShowWindow(state.wn);
 				break;
 
 			default:
 				break;
 		}
 	}
+}
 
-	return 0;
+void render(void) {
+	SDL_SetRenderDrawColor(state.rn, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
+	SDL_RenderClear(state.rn);
+
+	for (size_t i = 0; i < state.player.len; ++i) {
+		SDL_Rect r = state.player.body[i].rect;
+		
+		if (i > 0) {
+			switch (state.player.body[i].dir) {
+				case DIR_UP:
+					r.h = grid_size;
+					r.y -= grid_size/4;
+					break;
+
+				case DIR_DOWN:
+					r.h = grid_size;
+					r.y += grid_size/4;
+					break;
+				
+				case DIR_LEFT:
+					r.w = grid_size;
+					r.x -= grid_size/4;
+					break;
+
+				case DIR_RIGHT:
+					r.w = grid_size;
+					r.x += grid_size/4;
+					break;
+
+				default:
+					break;
+			}
+		}
+
+		r.x -= r.w/2; r.y -= r.h/2;
+
+		SDL_Color c = (i % 2) ? snake_color1 : snake_color2;
+
+		SDL_SetRenderDrawColor(state.rn, c.r, c.g, c.b, c.a);
+		SDL_RenderDrawRect(state.rn, &r);
+		SDL_RenderFillRect(state.rn, &r);
+	}
+
+	for (size_t i = 0; i < ARR_LEN(border_colors); ++i) {
+		SDL_Color c = border_colors[i];
+		SDL_SetRenderDrawColor(state.rn, c.r, c.g, c.b, c.a);
+
+		SDL_Rect r = {0};
+
+		switch (i) {
+			case DIR_UP:
+				r = (SDL_Rect){0, 0, wn_size.x, grid_size/2};
+				break;
+
+			case DIR_DOWN:
+				r = (SDL_Rect){0, wn_size.y - grid_size/2, wn_size.x, grid_size/2};
+				break;
+
+			case DIR_LEFT:
+				r = (SDL_Rect){0, 0, grid_size/2, wn_size.y};
+				break;
+
+			case DIR_RIGHT:
+				r = (SDL_Rect){wn_size.x - grid_size/2, 0, grid_size/2, wn_size.y};
+				break;
+
+			default:
+				break;
+		}
+
+		SDL_RenderDrawRect(state.rn, &r);
+		SDL_RenderFillRect(state.rn, &r);
+	}
+
+	SDL_RenderPresent(state.rn);
 }
 
 void keyboard(void) {
 	SDL_PumpEvents();
-
+	
 	int len_keys = 0;
-	const uint8_t *keys = SDL_GetKeyboardState(&len_keys);
+	const u8 *keys = SDL_GetKeyboardState(&len_keys);
 
 	for (size_t i = 0; i < len_keys; ++i) {
 		if (!keys[i]) {continue;}
 
 		const SDL_Keycode key = SDL_GetKeyFromScancode(i);
 
+		u8 *dir = &state.player.body[0].dir;
 		switch (key) {
-			case (SDLK_a):
-				if (state.player.vel.x != GRID_SIZE) {
-					state.player.vel.x = -GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_LEFT;}
-				state.player.vel.y = 0;
+			case SDLK_w:
+				if (*dir == DIR_DOWN) {break;}
+
+				*dir = DIR_UP;
 				break;
 
-			case (SDLK_d):
-				if (state.player.vel.x != -GRID_SIZE) {
-					state.player.vel.x = GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_RIGHT;}
-				state.player.vel.y = 0;
+			case SDLK_s:
+				if (*dir == DIR_UP) {break;}
+
+				*dir = DIR_DOWN;
 				break;
 
-			case (SDLK_w):
-				state.player.vel.x = 0;
-				if (state.player.vel.y != GRID_SIZE) {
-					state.player.vel.y = -GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_UP;}
+			case SDLK_a:
+				if (*dir == DIR_RIGHT) {break;}
+
+				*dir = DIR_LEFT;
 				break;
 
-			case (SDLK_s):
-				state.player.vel.x = 0;
-				if (state.player.vel.y != -GRID_SIZE) {
-					state.player.vel.y = GRID_SIZE; state.player.body_dirs[0] = BODY_DIR_DOWN;}
+			case SDLK_d:
+				if (*dir == DIR_LEFT) {break;}
+
+				*dir = DIR_RIGHT;
 				break;
 
 			default:
@@ -197,119 +299,45 @@ void keyboard(void) {
 }
 
 void update(void) {
-	const SDL_Rect food_rect = {state.food.pos.x, state.food.pos.y, GRID_SIZE/2, GRID_SIZE/2};
-	IntVector2 window_dim = {0}; SDL_GetWindowSizeInPixels(state.window, &window_dim.x, &window_dim.y);
+	PlayerSegment_s *player_head = &state.player.body[0];
 
-	if (collide_rect(&state.player.body[0], &food_rect)) {
-		// randomize food position
-		state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
-		state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
-
-		// update player
-		++state.player.length;
-		state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
-		state.player.body[state.player.length - 1].x = -100 * GRID_SIZE;
-		state.player.body[state.player.length - 1].y = -100 * GRID_SIZE;
-
-		state.player.body_dirs = realloc(state.player.body_dirs, sizeof(*state.player.body_dirs) * state.player.length);
+	for (ssize_t i = state.player.len - 1; i >= 1; --i) {
+		state.player.body[i] = state.player.body[i - 1];
 	}
 
-	bool is_player_oob = state.player.body[0].x > window_dim.x || \
-						 state.player.body[0].y > window_dim.y || \
-						 state.player.body[0].x < 0 || \
-						 state.player.body[0].y < 0;
-
-	bool is_food_oob = state.food.pos.x > window_dim.x || \
-					   state.food.pos.y > window_dim.y || \
-					   state.food.pos.x < 0 || \
-					   state.food.pos.y < 0;
-
-	if (is_food_oob) {
-		state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
-		state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
-	}
-
-	if (is_player_oob) {
-		state.player.length = 1;
-		state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
-		state.player.body[0].x = window_dim.x/2; state.player.body[0].x -= GRID_SIZE/2;
-		state.player.body[0].y = window_dim.y/2; state.player.body[0].y -= GRID_SIZE/2;
-	}
-
-	for (size_t i = 1; i < state.player.length; ++i) {
-		// reset the game if the snake collides with itself
-		if (state.player.body[0].x == state.player.body[i].x && state.player.body[0].y == state.player.body[i].y) {
-			state.player.length = 1;
-			state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.length);
-			state.player.body[0].x = window_dim.x/2; state.player.body[0].x -= GRID_SIZE/2;
-			state.player.body[0].y = window_dim.y/2; state.player.body[0].y -= GRID_SIZE/2;
+	switch (state.player.body[0].dir) {
+		case DIR_UP:
+			state.player.body[0].rect.y -= grid_size;
 			break;
-		}
 
-		// re-randomize food position if it spawns on the player
-		if (collide_rect(&food_rect, &state.player.body[i])) {
-			state.food.pos.x = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.x - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE - GRID_SIZE/2;
-			state.food.pos.y = randrange((GRID_SIZE/2) / GRID_SIZE, (window_dim.y - GRID_SIZE/2) / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2;
+		case DIR_DOWN:
+			state.player.body[0].rect.y += grid_size;
 			break;
+		
+		case DIR_LEFT:
+			state.player.body[0].rect.x -= grid_size;
+			break;
+
+		case DIR_RIGHT:
+			state.player.body[0].rect.x += grid_size;
+			break;
+
+		default:
+			break;
+	}
+
+	for (size_t i = 1; i < state.player.len; ++i) {
+		if (collide_rect(&player_head->rect, &state.player.body[i].rect)) {
+
+			init_player();
 		}
 	}
 
-	// force the size of the body to be correct
-	for (size_t i = 0; i < state.player.length; ++i) {
-		if (state.player.body[i].w != GRID_SIZE/2) state.player.body[i].w = GRID_SIZE/2;
-		if (state.player.body[i].h != GRID_SIZE/2) state.player.body[i].h = GRID_SIZE/2;
-	}
-}
+	if (player_head->rect.x >= wn_size.x || player_head->rect.x <= 0 || \
+	    player_head->rect.y >= wn_size.y || player_head->rect.y <= 0) {
 
-void render(void) {
-	const SDL_Rect food_rect = {state.food.pos.x, state.food.pos.y, GRID_SIZE/2, GRID_SIZE/2};
-
-	SDL_SetRenderDrawColor(state.renderer, COLOR_BLACK);
-	SDL_RenderClear(state.renderer);
-
-	for (size_t i = 0; i < state.player.length; ++i) {
-		SDL_Rect r = state.player.body[i];
-		SDL_Color c = (i % 2 == 1) ? (SDL_Color){0x00, 0xCF, 0x00} : (SDL_Color){0x00, 0x7F, 0x00};
-
-		if (i > 0) switch (state.player.body_dirs[i]) {
-			case BODY_DIR_DOWN:
-				r.h = GRID_SIZE;
-				break;
-
-			case BODY_DIR_UP:
-				r.h = GRID_SIZE;
-				r.y -= GRID_SIZE/2;
-				break;
-
-			case BODY_DIR_RIGHT:
-				r.w = GRID_SIZE;
-				break;
-
-			case BODY_DIR_LEFT:
-				r.w = GRID_SIZE;
-				r.x -= GRID_SIZE/2;
+			init_player();
 		}
-
-		SDL_SetRenderDrawColor(state.renderer, c.r, c.g, c.b, 0xFF);
-		SDL_RenderDrawRect(state.renderer, &r);
-		SDL_RenderFillRect(state.renderer, &r);
-	}
-
-	SDL_SetRenderDrawColor(state.renderer, COLOR_RED);
-	SDL_RenderDrawRect(state.renderer, &food_rect);
-	SDL_RenderFillRect(state.renderer, &food_rect);
-
-	SDL_RenderPresent(state.renderer);
-}
-
-void mbwait(uint32_t milliseconds) {
-	const float rate = CLOCKS_PER_SEC/1000.0f;
-	const clock_t time = clock();
-
-	while ((float)(clock() - time) < milliseconds * rate) {
-		// prevent gcc from removing the loop using volatile empty inline asm
-		__asm__ volatile ("");
-	};
 }
 
 bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2) {
@@ -320,9 +348,26 @@ bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2) {
 		(r1->y <= r2->y + r2->h);
 }
 
-int randrange(int min, int max) {
-	assertf(min <= max, "Failed to perform randrange: min (%d) > max (%d)\n", min, max);
-	assertf(max <= RAND_MAX, "Failed to perform randrange: max (%d) > RAND_MAX (%d)\n", max, RAND_MAX);
+i32 rand_range(i32 min, i32 max) {
+	ASSERTF_2(min <= max, 
+	        "Failed to operate function '%s': min (%"PRId32") > max (%"PRId32")", 
+			__func__, min, max
+		   );
 
-	return (rand() % (max - min + 1)) + min; 
+	ASSERTF_2(max <= RAND_MAX, 
+	        "Failed to operate function '%s': max (%"PRId32") > RAND_MAX (%d)", 
+			__func__, max, RAND_MAX
+		   );
+
+	ASSERTF_2(min >= -RAND_MAX, 
+	        "Failed to operate function '%s': min (%"PRId32") < -RAND_MAX (%d)", 
+			__func__, min, -RAND_MAX
+		   );
+
+	if (min < 0) {
+		max -= min;
+		return rand() % (max + 1) + min;
+	}
+
+	return rand() % (max + 1 - min) + min;
 }
