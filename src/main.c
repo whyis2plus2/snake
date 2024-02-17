@@ -349,20 +349,32 @@ bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2) {
 }
 
 i32 rand_range(i32 min, i32 max) {
-	ASSERTF_2(min <= max, 
-	        "Failed to operate function '%s': min (%"PRId32") > max (%"PRId32")", 
-			__func__, min, max
-		   );
+	if(min > max) { 
+		fprintf(stderr, 
+				"Failed to operate function '%s': min (%"PRId32") > max (%"PRId32")", 
+		        __func__, min, max
+		       );
 
-	ASSERTF_2(max <= RAND_MAX, 
-	        "Failed to operate function '%s': max (%"PRId32") > RAND_MAX (%d)", 
-			__func__, max, RAND_MAX
-		   );
+		return -RAND_MAX;
+	}
 
-	ASSERTF_2(min >= -RAND_MAX, 
-	        "Failed to operate function '%s': min (%"PRId32") < -RAND_MAX (%d)", 
-			__func__, min, -RAND_MAX
-		   );
+	if (max > RAND_MAX) {
+		fprintf(stderr,
+				"Failed to operate function '%s': max (%"PRId32") > RAND_MAX (%d)", 
+				__func__, max, RAND_MAX
+				);
+
+		return -RAND_MAX;
+	}
+
+	if (min < -RAND_MAX) {
+	    fprintf(stderr,
+				"Failed to operate function '%s': min (%"PRId32") < -RAND_MAX (%d)", 
+				__func__, min, -RAND_MAX
+		       );
+
+		return -RAND_MAX;
+	}
 
 	if (min < 0) {
 		max -= min;

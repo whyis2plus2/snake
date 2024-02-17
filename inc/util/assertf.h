@@ -11,13 +11,4 @@
         abort(); \
     }
 
-
-// same as assertf, but don't print line or file info
-#define ASSERTF_2(_expr, ...) \
-    if (!(_expr)) { \
-        fprintf(stderr, "assertion of '%s' failed: ", #_expr); \
-        fprintf(stderr, __VA_ARGS__); \
-        abort(); \
-    }
-
 #endif // !_ASSERTF_h
