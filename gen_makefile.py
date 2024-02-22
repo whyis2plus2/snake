@@ -12,10 +12,10 @@ OBJ = f"$(patsubst {SRC_DIR}/%.c,{OBJ_DIR}/%.o,{SRC})"
 
 # platform specific constants
 if platform.system() == "Windows":
-    MKDIR = "python build_scripts/mkdir.py"
-    RMDIR = "python build_scripts/rmdir.py"
+    MKDIR = "python build_scripts\\mkdir.py"
+    RMDIR = "python build_scripts\\rmdir.py"
     RUN = ".\\"
-    LFLAGS = "-Llib/SDL2 -lmingw32 -lSDL2main -lSDL2 -mwindows"
+    LFLAGS = "-Llib\\SDL2 -lmingw32 -lSDL2main -lSDL2 -mwindows"
     EXE_EXT = ".exe"
 else:
     MKDIR = "mkdir -p"
@@ -24,7 +24,7 @@ else:
     LFLAGS = "-lSDL2main -lSDL2"
     EXE_EXT = ""
 
-TARGET = f"{OUT_DIR}/{EXE}{EXE_EXT}"
+TARGET = os.path.normpath(f"{OUT_DIR}/{EXE}{EXE_EXT}")
 
 if os.path.exists("makefile"):
     os.remove("makefile")
@@ -37,7 +37,7 @@ mk.write(f"""build: {TARGET}
 \t@{MKDIR} {OUT_DIR}
 \t{CC} $^ {LFLAGS} -o$@""")
 if platform.system() == "Windows": 
-    mk.write(f"\r\n\t@copy SDL2.dll {OUT_DIR} > NUL")
+    mk.write(f"\n\t@copy SDL2.dll {OUT_DIR} > NUL\n")
 mk.write(f"""
 {OBJ_DIR}/%.o: {SRC_DIR}/%.c
 \t@{MKDIR} {OBJ_DIR}
