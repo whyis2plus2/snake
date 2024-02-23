@@ -10,7 +10,6 @@
 
 #include <SDL2/SDL.h>
 
-#define ALLOC(_siz) calloc(1, (_siz))
 #define ARR_LEN(_arr) sizeof(_arr)/sizeof(*(_arr))
 
 #define DIR_UP    0
@@ -37,6 +36,7 @@ typedef struct {SDL_Rect rect; u8 dir;} PlayerSegment_s;
 u32 init_rand(void);
 void init_window(void);
 void init_player(void);
+void init_food(void);
 
 void window_event(void);
 void render(void);
@@ -55,8 +55,8 @@ const u32           rn_flags		    = 0;
 // Appearance
 const u32  			grid_size    	    = 20;
 const char 			wn_title[]          = "snake";
-const v2i  			wn_size      	    = {800, 600};
-const v2i  			wn_pos    		    = {SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED};
+const v2  			wn_size      	    = {800, 600};
+const v2  			wn_pos    		    = {SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED};
 const SDL_Color 	snake_color1 	    = {0x00, 0x7F, 0x00, 0xFF};
 const SDL_Color		snake_color2	    = {0x00, 0xCF, 0x00, 0xFF};
 const SDL_Color		food_color		    = {0xBA, 0x00, 0x00, 0xFF};
@@ -77,6 +77,8 @@ struct {
 	SDL_Window *wn;
 	SDL_Renderer *rn;
 
+	SDL_Rect food;
+
 	struct {
 		size_t len;
 		PlayerSegment_s *body;
@@ -93,6 +95,7 @@ int main(int argc, char *argv[]) {
 	init_rand();
 	init_window();
 	init_player();
+	init_food();
 
 	u8 player_cooldown = 10; // 10 frame cooldown
 
@@ -115,12 +118,11 @@ int main(int argc, char *argv[]) {
 }
 
 u32 init_rand(void) {
-	void *seed_gen = ALLOC(1);
+	// put the seed into a variable so that it can be returned
+	unsigned int seed = (unsigned int)(time(NULL) ^ clock());
 
-	u32 seed = (u32)((uintptr_t)seed_gen ^ (uintptr_t)&seed_gen);
 	srand(seed);
 
-	free(seed_gen);
 	return seed;
 }
 
@@ -145,11 +147,21 @@ void init_window(void) {
 
 void init_player(void) {
 	state.player.len = 1;
-	state.player.body = ALLOC(sizeof(*state.player.body) * state.player.len);
+	state.player.body = realloc(state.player.body, sizeof(*state.player.body));
 	
 	ASSERTF(state.player.body, "Failed to init player\n");
 
 	state.player.body[0].rect = (SDL_Rect){wn_size.x/2, wn_size.y/2, grid_size/2, grid_size/2};
+	state.player.body[0].dir = DIR_UP;
+}
+
+void init_food(void) {
+	state.food = (SDL_Rect){
+		rand_range(1, wn_size.x/grid_size - 1) * grid_size,
+		rand_range(1, wn_size.x/grid_size - 1) * grid_size,
+		grid_size/2,
+		grid_size/2
+	};
 }
 
 void window_event(void) {
@@ -167,6 +179,7 @@ void window_event(void) {
 			// I don't know why but kde (plasma) let me maximize the window
 			// so I'm putting this here just in case
 			case SDL_WINDOWEVENT_MAXIMIZED:
+				// yes this really un-maximizes the window
 				SDL_HideWindow(state.wn);
 				SDL_SetWindowSize(state.wn, wn_size.x, wn_size.y);
 				SDL_ShowWindow(state.wn);
@@ -252,6 +265,12 @@ void render(void) {
 		SDL_RenderFillRect(state.rn, &r);
 	}
 
+	{SDL_Rect r = state.food;
+	r.x -= r.w/2; r.y -= r.h/2;
+	SDL_SetRenderDrawColor(state.rn, food_color.r, food_color.g, food_color.b, food_color.a);
+	SDL_RenderDrawRect(state.rn, &r);
+	SDL_RenderFillRect(state.rn, &r);}
+
 	SDL_RenderPresent(state.rn);
 }
 
@@ -299,7 +318,7 @@ void keyboard(void) {
 }
 
 void update(void) {
-	PlayerSegment_s *player_head = &state.player.body[0];
+	const PlayerSegment_s *player_head = &state.player.body[0];
 
 	for (ssize_t i = state.player.len - 1; i >= 1; --i) {
 		state.player.body[i] = state.player.body[i - 1];
@@ -338,6 +357,27 @@ void update(void) {
 
 			init_player();
 		}
+
+	if (collide_rect(&player_head->rect, &state.food)) {
+		++state.player.len;
+		state.player.body = realloc(state.player.body, sizeof(*state.player.body) * state.player.len);
+		memset(&state.player.body[state.player.len - 1], 0, sizeof(*state.player.body));
+
+		init_food();
+	}
+
+	while (state.food.x >= wn_size.x || state.food.x <= 0 || \
+	    state.food.y >= wn_size.y || state.food.y <= 0) {
+
+			init_food();
+	}
+
+	for (size_t i = 1; i < state.player.len; ++i) {
+		while (collide_rect(&state.food, &state.player.body[i].rect)) {
+			init_food();
+			break;
+		}
+	}
 }
 
 bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2) {
@@ -349,20 +389,32 @@ bool collide_rect(const SDL_Rect *r1, const SDL_Rect *r2) {
 }
 
 i32 rand_range(i32 min, i32 max) {
-	ASSERTF_2(min <= max, 
-	        "Failed to operate function '%s': min (%"PRId32") > max (%"PRId32")", 
-			__func__, min, max
-		   );
+	if(min > max) { 
+		fprintf(stderr, 
+				"Failed to operate function '%s': min (%"PRId32") > max (%"PRId32")", 
+		        __func__, min, max
+		       );
 
-	ASSERTF_2(max <= RAND_MAX, 
-	        "Failed to operate function '%s': max (%"PRId32") > RAND_MAX (%d)", 
-			__func__, max, RAND_MAX
-		   );
+		return -RAND_MAX;
+	}
 
-	ASSERTF_2(min >= -RAND_MAX, 
-	        "Failed to operate function '%s': min (%"PRId32") < -RAND_MAX (%d)", 
-			__func__, min, -RAND_MAX
-		   );
+	if (max > RAND_MAX) {
+		fprintf(stderr,
+				"Failed to operate function '%s': max (%"PRId32") > RAND_MAX (%d)", 
+				__func__, max, RAND_MAX
+				);
+
+		return -RAND_MAX;
+	}
+
+	if (min < -RAND_MAX) {
+	    fprintf(stderr,
+				"Failed to operate function '%s': min (%"PRId32") < -RAND_MAX (%d)", 
+				__func__, min, -RAND_MAX
+		       );
+
+		return -RAND_MAX;
+	}
 
 	if (min < 0) {
 		max -= min;

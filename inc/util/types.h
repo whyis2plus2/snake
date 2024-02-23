@@ -49,7 +49,6 @@ static_assert(
     "system does not use IEEE-754 floats"
 );
 
-typedef struct {f32 x, y;} v2f;
-typedef struct {i32 x, y;} v2i;
+typedef struct {i32 x, y;} v2;
 
 #endif // !_types_h
