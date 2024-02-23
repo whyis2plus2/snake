@@ -10,7 +10,6 @@
 
 #include <SDL2/SDL.h>
 
-#define ALLOC(_siz) calloc(1, (_siz))
 #define ARR_LEN(_arr) sizeof(_arr)/sizeof(*(_arr))
 
 #define DIR_UP    0
@@ -153,6 +152,7 @@ void init_player(void) {
 	ASSERTF(state.player.body, "Failed to init player\n");
 
 	state.player.body[0].rect = (SDL_Rect){wn_size.x/2, wn_size.y/2, grid_size/2, grid_size/2};
+	state.player.body[0].dir = DIR_UP;
 }
 
 void init_food(void) {
@@ -179,6 +179,7 @@ void window_event(void) {
 			// I don't know why but kde (plasma) let me maximize the window
 			// so I'm putting this here just in case
 			case SDL_WINDOWEVENT_MAXIMIZED:
+				// yes this really un-maximizes the window
 				SDL_HideWindow(state.wn);
 				SDL_SetWindowSize(state.wn, wn_size.x, wn_size.y);
 				SDL_ShowWindow(state.wn);
@@ -317,12 +318,6 @@ void keyboard(void) {
 }
 
 void update(void) {
-	if (state.food.x >= wn_size.x || state.food.x <= 0 || \
-	    state.food.y >= wn_size.y || state.food.y <= 0) {
-
-			init_food();
-	}
-
 	const PlayerSegment_s *player_head = &state.player.body[0];
 
 	for (ssize_t i = state.player.len - 1; i >= 1; --i) {
@@ -369,6 +364,19 @@ void update(void) {
 		memset(&state.player.body[state.player.len - 1], 0, sizeof(*state.player.body));
 
 		init_food();
+	}
+
+	while (state.food.x >= wn_size.x || state.food.x <= 0 || \
+	    state.food.y >= wn_size.y || state.food.y <= 0) {
+
+			init_food();
+	}
+
+	for (size_t i = 1; i < state.player.len; ++i) {
+		while (collide_rect(&state.food, &state.player.body[i].rect)) {
+			init_food();
+			break;
+		}
 	}
 }
 
